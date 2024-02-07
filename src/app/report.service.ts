@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, timer, of, from } from 'rxjs';
-import { switchMap } from 'rxjs/operators';
+import { Observable, timer, of, from, interval, Subject } from 'rxjs';
+import { filter, map, mergeMap, switchMap, take, takeUntil, tap } from 'rxjs/operators';
 
 @Injectable({
   providedIn: 'root'
@@ -11,48 +11,41 @@ export class ReportService {
   constructor(private http: HttpClient) { }
 
   getReportURL() {
-    // return this.http.get<string>('reportURLApiEndpoint');
-    const reportPromise = new Promise((resolve, reject) => {
-        setTimeout(() => {
-            resolve('myreportUrl');
-        }, 3000)
-    });
-
-    return reportPromise;
+    return timer(3000).pipe(
+      map(() => 'myreportUrl')
+    );
   }
 
   checkReportStatus(reportURL: string){
-    // return this.http.get<any>('reportStatusApiEndpoint', { params: { reportURL } });
-
-    console.log("checkReportStatus is called");
-    const reportReadyPomise = new Promise<string>((resolve, reject) => {
-        setTimeout(() => {
-            resolve('success');
-        }, 20000)
-    });
-
-    return from(reportReadyPomise);
+    return timer(3000).pipe(
+      map((number) => number > 3 ? 'success' : 'inProgress')
+    );
   }
 
   downloadReport(reportURL: string) {
     // return this.http.get<any>('downloadReportApiEndpoint', { params: { reportURL } });
 
-    return 'Report downloaded successfully';
+    return of('Report downloaded successfully');
   }
 
   pollReportStatus(reportURL: string) {
-    console.log("inside pollReportStatus");
-    return timer(0, 0.2 * 60 * 1000) // Poll every 5 minutes
+    return timer(0, 5000) // Poll every 5 minutes
       .pipe(
-        switchMap(() => this.checkReportStatus(reportURL))
+        map((number) => number > 1 ? 'success' : 'inProgress'),
+        // switchMap(() => this.checkReportStatus(reportURL))
       );
   }
 
   downloadReportWhenReady(reportURL: string): Observable<any> {
+    const takeUntil$ = new Subject<void>();
     return this.pollReportStatus(reportURL)
       .pipe(
         switchMap(status => {
+          console.log(status);
+          
           if (status === 'success') {
+            takeUntil$.next();
+            takeUntil$.complete();
             return this.downloadReport(reportURL);
           } else if (status === 'inProgress') {
             // Continue polling
@@ -60,7 +53,9 @@ export class ReportService {
           } else {
             throw new Error('Report generation failed.');
           }
-        })
+        }),
+        filter((result) => !!result),
+        take(1),
       );
   }
 }
