@@ -1,5 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { ReportService } from './report.service';
+import { switchMap, tap } from 'rxjs';
 
 @Component({
   selector: 'app-root',
@@ -18,11 +19,10 @@ export class AppComponent implements OnInit{
   }
 
   async downloadReport(){
-    const reportURL = await this.reportService.getReportURL();
-    console.log("Report URL>>>", reportURL);
-
-    const result = this.reportService.downloadReportWhenReady(<string>reportURL)
-    console.log("Report Download Status", result);
+    this.reportService.getReportURL().pipe(
+      tap((reportURL) => console.log("Report URL>>>", reportURL)),
+      switchMap((reportURL) => this.reportService.downloadReportWhenReady(reportURL)),
+    ).subscribe(result => console.log("Report Download Status", result));
   }
   
 }
